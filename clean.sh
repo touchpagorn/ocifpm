@@ -12,7 +12,7 @@ case "$confirm" in
 
         # Remove local folders and files
         echo "🗑️ Removing local files and directories..."
-        rm -rf html wordpress
+        rm -rf html
         rm -rf config/ssl/*
         rm -rf config/secrets/*
         

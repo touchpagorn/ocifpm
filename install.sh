@@ -68,44 +68,37 @@ if [ -z "$compose_major" ] || [ "$compose_major" -lt 2 ]; then
   echo "Please upgrade Docker / Docker Compose: https://docs.docker.com/compose/install/"
   exit 1
 fi
-echo "Download latest WordPress..."
-wget -O - https://wordpress.org/latest.tar.gz | tar zxv
-mv wordpress html
-cp config/source/index.html html/index.html
+echo "Download latest CodeIgniter v4.7.3..."
+wget -O codeigniter.zip https://api.github.com/repos/codeigniter4/framework/zipball/v4.7.3
+unzip -q codeigniter.zip
+mv codeigniter4-framework-* html
+rm codeigniter.zip
 
-
-# กำหนดเส้นทางไปหาไฟล์ wp-config.php (ปรับเปลี่ยนให้ตรงกับโฟลเดอร์ในเครื่องของคุณ)
-WP_CONFIG_PATH="./html/wp-config.php"
-
-# ตรวจสอบก่อนว่าเคยใส่คอนฟิก Redis ไปหรือยัง เพื่อป้องกันการแทรกซ้ำซ้อนเวลาสั่งรันสคริปต์ซ้ำ
-if ! grep -q "WP_REDIS_HOST" "$WP_CONFIG_PATH"; then
-    echo "Adding Redis configuration to wp-config.php..."
-
-    # ใช้ sed ค้นหาข้อความสิ้นสุดการแก้ไข แล้วแทรกโค้ด Redis ไว้ก่อนหน้าบรรทัดนั้น
-    sed -i "/\/\* That's all, stop editing! Happy publishing. \*\//i \\
-define( 'WP_REDIS_HOST', 'wp-redis' );\\
-define( 'WP_REDIS_PORT', 6379 );\\
-" "$WP_CONFIG_PATH"
-
-    echo "Redis configuration added successfully."
+# Configure CodeIgniter .env file
+if [ -f "html/env" ]; then
+    echo "Configuring CodeIgniter .env file..."
+    cp html/env html/.env
+    sed -i 's/# CI_ENVIRONMENT = production/CI_ENVIRONMENT = development/' html/.env
+    sed -i 's/# database.default.hostname = localhost/database.default.hostname = db/' html/.env
+    sed -i "s|# database.default.database = ci4|database.default.database = $db_name|" html/.env
+    sed -i "s|# database.default.username = root|database.default.username = $db_name|" html/.env
+    sed -i "s|# database.default.password = |database.default.password = $user_password|" html/.env
+    sed -i 's/# database.default.DBDriver = MySQLi/database.default.DBDriver = MySQLi/' html/.env
+    echo "CodeIgniter .env configured successfully."
 else
-    echo "Redis configuration already exists in wp-config.php. Skipping."
+    echo "[WARNING] env template not found. Skipping auto-configuration."
 fi
 
-
-
-
-echo "Create a WordPress service."
+echo "Create a CodeIgniter service."
 docker compose up -d
-#mypassword=$(grep MYSQL_ROOT_PASSWORD docker-compose.yml|awk -F\= '{print $2}')
 
 docker exec web sh -c "chown -R www-data:www-data /var/www/html"
-
+docker exec web sh -c "chmod -R 775 /var/www/html/writable"
 
 echo "done..."
 
 echo "====================="
-echo "WordPress site: $(hostname -I|awk '{print "http://"$1":8888"}')"
+echo "CodeIgniter site: https://$(hostname -I | awk '{print $1}')"
 echo "[Database info]"
 echo "db:   $db_name"
 echo "host: db"
